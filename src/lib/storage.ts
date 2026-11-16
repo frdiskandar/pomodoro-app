@@ -62,6 +62,7 @@ export function sanitizeSettings(input: unknown): Settings {
     autoStartBreak: asBoolean(raw.autoStartBreak, DEFAULT_SETTINGS.autoStartBreak),
     autoStartFocus: asBoolean(raw.autoStartFocus, DEFAULT_SETTINGS.autoStartFocus),
     vibrate: asBoolean(raw.vibrate, DEFAULT_SETTINGS.vibrate),
+    sound: asBoolean(raw.sound, DEFAULT_SETTINGS.sound),
     notifications: asBoolean(raw.notifications, DEFAULT_SETTINGS.notifications),
     theme,
   };

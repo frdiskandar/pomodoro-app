@@ -30,6 +30,7 @@ export type Settings = {
   autoStartBreak: boolean;
   autoStartFocus: boolean;
   vibrate: boolean;
+  sound: boolean;
   notifications: boolean;
   theme: ThemePreference;
 };
@@ -61,6 +62,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoStartBreak: true,
   autoStartFocus: false,
   vibrate: true,
+  sound: true,
   notifications: true,
   theme: 'system',
 };

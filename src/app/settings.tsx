@@ -13,6 +13,7 @@ import {
   requestNotificationPermission,
   type NotificationPermission,
 } from '@/lib/notifications';
+import { playSound } from '@/lib/sound';
 import { LIMITS, DEFAULT_SETTINGS, type ThemePreference } from '@/lib/types';
 import { useAppData } from '@/state/app-context';
 import { Spacing } from '@/theme/tokens';
@@ -130,6 +131,26 @@ export default function SettingsScreen() {
 
       <SectionLabel>Umpan balik</SectionLabel>
       <PixelCard>
+        <PixelSwitch
+          title="Suara"
+          description="Bunyi singkat saat sesi mulai, selesai, dan berganti"
+          value={settings.sound}
+          onChange={(sound) => {
+            actions.setSettings({ sound });
+            if (sound) playSound('focusComplete', { force: true });
+          }}
+        />
+        {settings.sound ? (
+          <View style={{ marginTop: Spacing.sm, marginBottom: Spacing.sm }}>
+            <PixelButton
+              label="Uji suara"
+              onPress={() => playSound('focusComplete', { force: true })}
+              icon={<PixelIcon name="speaker" size={14} color={theme.ink} />}
+              style={{ alignSelf: 'flex-start' }}
+            />
+          </View>
+        ) : null}
+        <Divider />
         <PixelSwitch
           title="Getar"
           description="Getar singkat saat sesi selesai"

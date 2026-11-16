@@ -16,13 +16,16 @@ if (Platform.OS !== 'web') {
     handleNotification: async () => ({
       shouldShowBanner: true,
       shouldShowList: true,
-      shouldPlaySound: true,
+      // The app plays its own cue while it is open; a second system sound
+      // on top of it would only be noise.
+      shouldPlaySound: false,
       shouldSetBadge: false,
     }),
   });
 }
 
-const CHANNEL_ID = 'pomodoro';
+const CHANNEL_SOUND = 'pomodoro';
+const CHANNEL_SILENT = 'pomodoro-silent';
 
 export const notificationsSupported = Platform.OS !== 'web';
 
@@ -45,15 +48,27 @@ function isGranted(status: {
   return status.ios?.status === 3;
 }
 
-async function ensureChannel(): Promise<void> {
+async function ensureChannels(): Promise<void> {
   if (!Notifications || Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+  // Android locks a channel's sound once it exists, so the silent variant has
+  // to live in its own channel. The timer picks one when it schedules.
+  await Notifications.setNotificationChannelAsync(CHANNEL_SOUND, {
     name: 'Timer pomodoro',
     description: 'Pemberitahuan saat sesi fokus atau istirahat selesai.',
     importance: Notifications.AndroidImportance.HIGH,
     enableVibrate: true,
     vibrationPattern: [0, 280, 140, 280],
     lightColor: '#E8503A',
+    sound: 'default',
+  });
+  await Notifications.setNotificationChannelAsync(CHANNEL_SILENT, {
+    name: 'Timer pomodoro (tanpa suara)',
+    description: 'Pemberitahuan hening saat aplikasi sedang terbuka.',
+    importance: Notifications.AndroidImportance.HIGH,
+    enableVibrate: true,
+    vibrationPattern: [0, 280, 140, 280],
+    lightColor: '#E8503A',
+    sound: null,
   });
 }
 
@@ -72,7 +87,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   if (!Notifications) return 'unsupported';
   return enqueue(async () => {
     try {
-      await ensureChannel();
+      await ensureChannels();
       let status = await Notifications!.getPermissionsAsync();
       if (!isGranted(status) && status.canAskAgain) {
         status = await Notifications!.requestPermissionsAsync();
@@ -123,6 +138,8 @@ export async function syncTimerNotification(options: {
   running: boolean;
   endsAt: number | null;
   mode: TimerMode;
+  sound: boolean;
+  foreground: boolean;
 }): Promise<void> {
   if (!Notifications) return;
   await enqueue(async () => {
@@ -131,19 +148,22 @@ export async function syncTimerNotification(options: {
       if (!options.enabled || !options.running || !options.endsAt) return;
       const permission = await Notifications!.getPermissionsAsync();
       if (!isGranted(permission)) return;
-      await ensureChannel();
+      await ensureChannels();
+      // While the app is open it plays the chiptune cue itself, so the system
+      // banner stays silent. In the background the banner carries the sound.
+      const withSound = options.sound && !options.foreground;
       const copy = NOTIFICATION_COPY[options.mode];
       await Notifications!.scheduleNotificationAsync({
         content: {
           title: copy.title,
           body: copy.body,
-          sound: true,
+          sound: withSound,
           data: { url: '/', screen: 'home' },
         },
         trigger: {
           type: Notifications!.SchedulableTriggerInputTypes.DATE,
           date: new Date(options.endsAt),
-          channelId: CHANNEL_ID,
+          channelId: withSound ? CHANNEL_SOUND : CHANNEL_SILENT,
         } as NotificationTriggerInput,
       });
     } catch {

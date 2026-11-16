@@ -8,7 +8,7 @@ Aplikasi pomodoro pixel-art untuk Android, iOS, dan web. Dibangun dengan Expo SD
 - **Siklus otomatis**: setelah fokus selesai, lanjut ke istirahat; istirahat panjang setiap N sesi (bisa diatur).
 - **Todolist**: tambah, centang, hapus, dan pilih tugas aktif. Setiap sesi fokus menambah hitungan pomodoro tugas tersebut.
 - **Statistik**: ringkasan hari/minggu/bulan, grafik aktivitas per jam/hari, rincian per tugas, rentetan hari, dan daftar sesi terakhir.
-- **Setelan**: durasi fokus/istirahat, target harian, mulai otomatis, getar, notifikasi lokal, dan tema terang/gelap/sistem.
+- **Setelan**: durasi fokus/istirahat, target harian, mulai otomatis, getar, suara, notifikasi lokal, dan tema terang/gelap/sistem.
 - **Tahan restart**: timer memakai timestamp absolut, jadi sesi tetap berjalan dan tercatat walau aplikasi ditutup.
 - **Data lokal**: semua data disimpan di perangkat dengan AsyncStorage, tanpa akun atau sinkronisasi.
 
@@ -47,6 +47,14 @@ npx expo-doctor
 npx expo export --platform web
 ```
 
+## Suara
+
+- Tiap kejadian punya isyarat chiptune sendiri: mulai sesi (`start.wav`), fokus selesai (`focus-complete.wav`), dan istirahat selesai (`break-complete.wav`).
+- Suara diputar dengan `expo-audio`; aktif/nonaktif di Setelan → Umpan balik → **Suara**, lengkap dengan tombol **Uji suara**.
+- Saat aplikasi terbuka, isyarat diputar oleh aplikasi dan notifikasi sistem dibuat hening agar tidak dobel. Saat aplikasi di background, bunyi berasal dari notifikasi.
+- Jika **Suara** dimatikan, kanal notifikasi Android beralih ke `pomodoro-silent`.
+- Audio hanya diputar di browser setelah interaksi pertama (kebijakan autoplay). Di perangkat native, `expo-audio` perlu build ulang karena modul native baru.
+
 ## Notifikasi
 
 - Notifikasi lokal dijadwalkan saat timer berjalan (`expo-notifications`), termasuk kanal Android `pomodoro`.
@@ -65,20 +73,23 @@ src/
     todo/           todolist + dialog hapus
     stats/          tile dan rincian statistik
   hooks/            tema, waktu
-  lib/              tipe, tanggal, statistik, timer, storage, notifikasi
+  lib/              tipe, tanggal, statistik, timer, storage, notifikasi, suara
   state/            reducer + context (data & timer dipisah agar tidak re-render tiap tick)
   theme/            palet dan token desain
 assets/
   fonts/            Silkscreen (OFL)
   images/           ikon aplikasi, splash, ikon tab, ikon notifikasi
+  sounds/           isyarat WAV chiptune (mulai, fokus selesai, istirahat selesai)
 scripts/
   generate-assets.py  membuat ulang semua aset PNG pixel
+  generate-sounds.py  membuat ulang isyarat WAV
 ```
 
 ## Aset
 
-Semua ikon dan splash dibuat secara prosedural agar tetap tajam di grid pixel:
+Semua ikon, splash, dan isyarat suara dibuat secara prosedural agar tetap tajam di grid pixel:
 
 ```bash
 python3 scripts/generate-assets.py
+python3 scripts/generate-sounds.py
 ```

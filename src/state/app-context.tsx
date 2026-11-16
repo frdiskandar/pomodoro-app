@@ -11,6 +11,7 @@ import { AppState as NativeAppState, Vibration } from 'react-native';
 import { durationForMode, remainingForTimer } from '@/lib/timer';
 import { loadState, saveState } from '@/lib/storage';
 import { syncTimerNotification } from '@/lib/notifications';
+import { playSound, preloadSounds, setSoundEnabled } from '@/lib/sound';
 import type {
   PersistedState,
   Session,
@@ -58,6 +59,7 @@ const TimerContext = createContext<TimerValue | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => createInitialState());
   const [now, setNow] = useState(() => Date.now());
+  const [foreground, setForeground] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -75,6 +77,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const subscription = NativeAppState.addEventListener('change', (next) => {
+      setForeground(next === 'active');
       if (next === 'active') setNow(Date.now());
     });
     return () => subscription.remove();
@@ -86,18 +89,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!state.hydrated || !running || state.timer.endsAt === null) return;
     const endsAt = state.timer.endsAt;
     const shouldVibrate = state.settings.vibrate;
+    const shouldSound = state.settings.sound;
+    const mode = state.timer.mode;
 
     const interval = setInterval(() => {
       const current = Date.now();
       setNow(current);
       if (current >= endsAt) {
         if (shouldVibrate) Vibration.vibrate(400);
+        // In the background the scheduled notification carries the sound.
+        if (shouldSound && foreground) {
+          playSound(mode === 'focus' ? 'focusComplete' : 'breakComplete');
+        }
         dispatch({ type: 'complete', now: current });
       }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [state.hydrated, running, state.timer.endsAt, state.settings.vibrate]);
+  }, [
+    state.hydrated,
+    running,
+    state.timer.endsAt,
+    state.timer.mode,
+    state.settings.vibrate,
+    state.settings.sound,
+    foreground,
+  ]);
+
+  useEffect(() => {
+    setSoundEnabled(state.settings.sound);
+    if (state.settings.sound) preloadSounds();
+  }, [state.settings.sound]);
 
   useEffect(() => {
     if (!state.hydrated) return;
@@ -121,13 +143,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       running: state.timer.status === 'running',
       endsAt: state.timer.endsAt,
       mode: state.timer.mode,
+      sound: state.settings.sound,
+      foreground,
     });
   }, [
     state.hydrated,
     state.settings.notifications,
+    state.settings.sound,
     state.timer.status,
     state.timer.endsAt,
     state.timer.mode,
+    foreground,
   ]);
 
   const actions = useMemo<Actions>(
@@ -138,10 +164,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeTodo: (id) => dispatch({ type: 'removeTodo', id }),
       selectTask: (id) => dispatch({ type: 'selectTask', id }),
       setMode: (mode) => dispatch({ type: 'setMode', mode }),
-      start: () => dispatch({ type: 'start', now: Date.now() }),
+      start: () => {
+        playSound('start');
+        dispatch({ type: 'start', now: Date.now() });
+      },
       pause: () => dispatch({ type: 'pause', now: Date.now() }),
       reset: () => dispatch({ type: 'reset' }),
-      skip: () => dispatch({ type: 'skip' }),
+      skip: () => {
+        playSound('start');
+        dispatch({ type: 'skip' });
+      },
       resetData: () => dispatch({ type: 'resetData' }),
     }),
     []
